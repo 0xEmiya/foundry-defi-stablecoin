@@ -173,6 +173,13 @@ contract DSCEngine {
 
     // public functions
     // https://ethereum.stackexchange.com/questions/19380/external-vs-public-best-practices
+
+    /**
+     * @notice The function to mint DSC
+     * @notice the amount of DSC is in wei units.
+     * @param amountDSCToMint The amount of DSC the user wants to mint
+     * @dev can only mint DSC if you have enough collateral
+     */
     function mintDSC(uint256 amountDSCToMint) public moreThanZero(amountDSCToMint) {
         s_DSCMinted[msg.sender] += amountDSCToMint;
         //TODO check health factor
@@ -217,15 +224,38 @@ contract DSCEngine {
         i_dsc.burn(amountDSCToBurn);
     }
 
-    function _getAccountInformation() private {}
-
-    function _healthFactor(address user) private view returns (uint256) {
-        return 0;
+    function _getAccountInformation(address user)
+        private
+        view
+        returns (uint256 totalDSCMinted, uint256 collateralValueInUsd)
+    {
+        totalDSCMinted = s_DSCMinted[user];
+        collateralValueInUsd = getAccountCollateralValue(user);
     }
 
-    function _getUsdValue() private {}
+    function _healthFactor(address user) private view returns (uint256) {
+        (uint256 totalDSCMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        return _calculateHealthFactor(totalDSCMinted, collateralValueInUsd);
+    }
 
-    function _calculateHealthFactor() private {}
+    function _getUsdValue(address token, uint256 amount) private view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        // 1e8 * 1e10 / 1e18
+        return (uint256(price) * amount * ADDITIONAL_FEED_PRECISION) / PRECISION;
+    }
+
+    function _calculateHealthFactor(uint256 totalDSCMinted, uint256 collateralValueInUsd)
+        private
+        pure
+        returns (uint256)
+    {
+        if (totalDSCMinted == 0) {
+            return type(uint256).max;
+        }
+        uint256 collateralThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (collateralThreshold * PRECISION) / totalDSCMinted;
+    }
 
     function revertIfHealthFactorIsBroken(address user) internal view {
         uint256 userHealthFactor = _healthFactor(user);
@@ -237,11 +267,19 @@ contract DSCEngine {
     // external * public view & pure functions
     function calculateHealthFactor() external view {}
 
-    function getUsdValue() external view {}
+    function getUsdValue(address token, uint256 amount) external view returns (uint256) {
+        return _getUsdValue(token, amount);
+    }
 
     function getCollateralBalanceOfUser() external view {}
 
-    function getAccountCollateralValue() public view {}
+    function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
+        for (uint256 index = 0; index < s_collateralTokens.length; index++) {
+            address token = s_collateralTokens[index];
+            uint256 amount = s_collateralDeposited[user][token];
+            totalCollateralValueInUsd += _getUsdValue(token, amount);
+        }
+    }
 
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
