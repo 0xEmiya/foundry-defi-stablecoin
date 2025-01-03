@@ -1,6 +1,7 @@
-# Defi Stablecoin 项目
+# Defi Stablecoin by Foundry.
 
 这是一个去中心化稳定币(DSC - Decentralized Stablecoin)项目,跟随 Cyfrin 的 Solidity 全栈课程开发。
+https://github.com/Cyfrin/foundry-defi-stablecoin-cu
 
 ## 项目特点
 

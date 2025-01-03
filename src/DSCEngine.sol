@@ -39,7 +39,7 @@ contract DSCEngine {
     DecentralizedStableCoin private immutable i_dsc;
 
     uint256 private constant LIQUIDATION_THRESHOLD = 50;
-    uint256 private constant LIQUIDATION_BONUS = 10;
+    uint256 private constant LIQUIDATION_BONUS = 5;
     uint256 private constant LIQUIDATION_PRECISION = 100;
     uint256 private constant MIN_HEALTH_FACTOR = 1e18;
     uint256 private constant PRECISION = 1e18;
@@ -265,13 +265,29 @@ contract DSCEngine {
     }
 
     // external * public view & pure functions
-    function calculateHealthFactor() external view {}
+    function calculateHealthFactor(uint256 totalDSCMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256)
+    {
+        return _calculateHealthFactor(totalDSCMinted, collateralValueInUsd);
+    }
+
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalDSCMinted, uint256 collateralValueInUsd)
+    {
+        return _getAccountInformation(user);
+    }
 
     function getUsdValue(address token, uint256 amount) external view returns (uint256) {
         return _getUsdValue(token, amount);
     }
 
-    function getCollateralBalanceOfUser() external view {}
+    function getCollateralBalanceOfUser(address user, address tokenCollateralAddress) external view returns (uint256) {
+        return s_collateralDeposited[user][tokenCollateralAddress];
+    }
 
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
         for (uint256 index = 0; index < s_collateralTokens.length; index++) {
